@@ -1,0 +1,41 @@
+# Avance 1: solo NameNode. DataNodes se añaden en Avance 2.
+services:
+  namenode:
+    build:
+      context: .
+      dockerfile: namenode/Dockerfile
+    container_name: mini-dfs-namenode
+    ports:
+      - "8000:8000"
+    environment:
+      BLOCK_SIZE: "67108864"
+      REPLICATION_FACTOR: "2"
+      HEARTBEAT_INTERVAL: "3"
+      HEARTBEAT_TIMEOUT: "10"
+      NAMENODE_PORT: "8000"
+      NAMENODE_PRIVATE_HOST: "namenode"
+      DB_URL: "sqlite:////data/namenode.db"
+      JWT_SECRET: "change_me_in_dev"
+      JWT_EXPIRE_HOURS: "24"
+    volumes:
+      - namenode-data:/data
+    networks:
+      - dfs-net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  dfs-net:
+    driver: bridge
+
+volumes:
+  namenode-data:

@@ -1,0 +1,14 @@
+.env
+*.env
+*.tfvars
+!infra/terraform.tfvars.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+namenode.db
+/data/
+blocks/
+*.pem
+.aws/
