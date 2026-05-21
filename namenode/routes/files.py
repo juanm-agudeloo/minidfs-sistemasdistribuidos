@@ -1,9 +1,9 @@
-"""Endpoints de namespace de archivos: put, get, ls, mkdir."""
+"""Endpoints de namespace de archivos: put, get, ls, mkdir, rm, rmdir."""
 
 import logging
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import httpx
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,6 @@ from namenode.database import get_db
 from namenode.models import Block, FileEntry, User
 from namenode.security import get_current_user
 from namenode.services.block_manager import allocate_blocks
-from shared import config
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/files", tags=["files"])
@@ -145,6 +144,55 @@ def rm(
         file_entry = db.query(FileEntry).filter_by(owner_id=user.id, path=path, is_directory=False).first()
     if not file_entry:
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    # Recopilar (DataNode, block_id) antes de que el cascade borre los metadatos
+    targets = [
+        (replica.datanode.address, replica.datanode.port, block.block_id)
+        for block in file_entry.blocks
+        for replica in block.replicas
+    ]
+
+    deleted_path = file_entry.path
     db.delete(file_entry)
     db.commit()
-    return {"deleted": path}
+
+    # Borrado físico de bloques en los DataNodes (best-effort, por IP privada)
+    for address, port, block_id in targets:
+        try:
+            httpx.delete(f"http://{address}:{port}/blocks/{block_id}", timeout=5)
+        except Exception as exc:
+            logger.warning("[files] No se pudo borrar bloque %s en %s:%s: %s",
+                           block_id, address, port, exc)
+
+    logger.info("[files] RM file path=%s user=%s bloques=%s", deleted_path, user.username, len(targets))
+    return {"deleted": deleted_path}
+
+
+@router.delete("/rmdir/{path:path}")
+def rmdir(
+    path: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    dir_entry = db.query(FileEntry).filter_by(owner_id=user.id, path=f"/{path}", is_directory=True).first()
+    if not dir_entry:
+        dir_entry = db.query(FileEntry).filter_by(owner_id=user.id, path=path, is_directory=True).first()
+    if not dir_entry:
+        raise HTTPException(status_code=404, detail="Directorio no encontrado")
+
+    children = (
+        db.query(FileEntry)
+        .filter(
+            FileEntry.owner_id == user.id,
+            FileEntry.path.like(f"{dir_entry.path}/%"),
+        )
+        .count()
+    )
+    if children > 0:
+        raise HTTPException(status_code=409, detail="El directorio no está vacío")
+
+    deleted_path = dir_entry.path
+    db.delete(dir_entry)
+    db.commit()
+    logger.info("[files] RMDIR path=%s user=%s", deleted_path, user.username)
+    return {"deleted": deleted_path}
