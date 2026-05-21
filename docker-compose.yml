@@ -1,4 +1,3 @@
-# Avance 1: solo NameNode. DataNodes se añaden en Avance 2.
 services:
   namenode:
     build:
@@ -22,16 +21,76 @@ services:
     networks:
       - dfs-net
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
-        ]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
+
+  datanode1:
+    build:
+      context: .
+      dockerfile: datanode/Dockerfile
+    container_name: mini-dfs-datanode1
+    environment:
+      NODE_ID: "datanode-1"
+      NAMENODE_HOST: "namenode"
+      NAMENODE_PORT: "8000"
+      DATANODE_PORT: "8001"
+      DATANODE_PRIVATE_IP: "datanode1"
+      DATA_DIR: "/data/blocks"
+      BLOCK_SIZE: "67108864"
+      HEARTBEAT_INTERVAL: "3"
+    volumes:
+      - datanode1-data:/data/blocks
+    networks:
+      - dfs-net
+    depends_on:
+      namenode:
+        condition: service_healthy
+
+  datanode2:
+    build:
+      context: .
+      dockerfile: datanode/Dockerfile
+    container_name: mini-dfs-datanode2
+    environment:
+      NODE_ID: "datanode-2"
+      NAMENODE_HOST: "namenode"
+      NAMENODE_PORT: "8000"
+      DATANODE_PORT: "8001"
+      DATANODE_PRIVATE_IP: "datanode2"
+      DATA_DIR: "/data/blocks"
+      BLOCK_SIZE: "67108864"
+      HEARTBEAT_INTERVAL: "3"
+    volumes:
+      - datanode2-data:/data/blocks
+    networks:
+      - dfs-net
+    depends_on:
+      namenode:
+        condition: service_healthy
+
+  datanode3:
+    build:
+      context: .
+      dockerfile: datanode/Dockerfile
+    container_name: mini-dfs-datanode3
+    environment:
+      NODE_ID: "datanode-3"
+      NAMENODE_HOST: "namenode"
+      NAMENODE_PORT: "8000"
+      DATANODE_PORT: "8001"
+      DATANODE_PRIVATE_IP: "datanode3"
+      DATA_DIR: "/data/blocks"
+      BLOCK_SIZE: "67108864"
+      HEARTBEAT_INTERVAL: "3"
+    volumes:
+      - datanode3-data:/data/blocks
+    networks:
+      - dfs-net
+    depends_on:
+      namenode:
+        condition: service_healthy
 
 networks:
   dfs-net:
@@ -39,3 +98,6 @@ networks:
 
 volumes:
   namenode-data:
+  datanode1-data:
+  datanode2-data:
+  datanode3-data:

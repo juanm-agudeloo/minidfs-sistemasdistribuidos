@@ -1,4 +1,4 @@
-"""NameNode — Avance 1: metadatos, auth y gestión de DataNodes."""
+"""NameNode — Avance 2: metadatos, auth, DataNodes, proxy de bloques y namespace."""
 
 import logging
 import sys
@@ -12,11 +12,12 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from namenode.database import init_db  # noqa: E402
-from namenode.routes import auth, nodes  # noqa: E402
-from namenode.seed import seed_default_user  # noqa: E402
-from namenode.services.monitor import start_monitor, stop_monitor  # noqa: E402
-from shared import config  # noqa: E402
+from namenode.database import init_db
+from namenode.routes import auth, nodes
+from namenode.routes import files, blocks
+from namenode.seed import seed_default_user
+from namenode.services.monitor import start_monitor, stop_monitor
+from shared import config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,13 +44,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Mini-DFS NameNode",
-    description="Avance 1 — Auth, namespace y registro de DataNodes",
-    version="0.1.0",
+    description="Avance 2 — Proxy de bloques, namespace y replicación",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
 app.include_router(auth.router)
 app.include_router(nodes.router)
+app.include_router(files.router)
+app.include_router(blocks.router)
 
 
 @app.get("/health")
@@ -57,6 +60,6 @@ def health():
     return {
         "status": "ok",
         "service": "namenode",
-        "version": "avance-1",
+        "version": "avance-2",
         "heartbeat_timeout": config.HEARTBEAT_TIMEOUT,
     }
