@@ -6,7 +6,7 @@ mínimo 2 nodos. Un **NameNode** central es el **único punto de entrada públic
 actúa como proxy de bloques: el cliente nunca conoce ni contacta las IPs de los
 DataNodes.
 
-**Estado actual: Avance 3 ✅** — sistema completo end-to-end: CLI del cliente,
+**Estado actual: Avance 3 completado** — sistema completo end-to-end: CLI del cliente,
 `put`/`get` con fragmentación y reensamble, namespace completo y re-replicación
 automática ante caída de un DataNode.
 
